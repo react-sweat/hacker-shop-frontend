@@ -168,6 +168,15 @@
     --hacker-noise-opacity: 0.02;
 }
 
+[data-theme='winter'] {
+    --hacker-green: #00ffff;
+    --hacker-glow: #0ea5e9;
+    --hacker-bg: #000b14;
+    --hacker-terminal: #001a2c;
+    --hacker-scanline-opacity: 0.15;
+    --hacker-noise-opacity: 0.08;
+}
+
 @layer base {
     :root {
         background-color: var(--color-hacker-bg);

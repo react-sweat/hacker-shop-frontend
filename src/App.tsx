@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Snowfall from 'react-snowfall'
 
 type Product = {
   id: string | number
@@ -26,8 +27,8 @@ function App() {
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('hacker-theme') as 'dark' | 'light') || 'dark'
+  const [theme, setTheme] = useState<'dark' | 'light' | 'winter'>(() => {
+    return (localStorage.getItem('hacker-theme') as 'dark' | 'light' | 'winter') || 'dark'
   })
 
   const [paymentData, setPaymentData] = useState({
@@ -41,7 +42,11 @@ function App() {
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    let newTheme: 'dark' | 'light' | 'winter'
+    if (theme === 'dark') newTheme = 'light'
+    else if (theme === 'light') newTheme = 'winter'
+    else newTheme = 'dark'
+
     setTheme(newTheme)
     localStorage.setItem('hacker-theme', newTheme)
     document.documentElement.setAttribute('data-theme', newTheme)
@@ -156,6 +161,8 @@ function App() {
 
   return (
     <div className="min-h-screen p-8 flex flex-col gap-8 max-w-[1400px] mx-auto animate-flicker relative">
+      {theme === 'winter' && <Snowfall color="#00ffff" snowflakeCount={150} style={{ position: 'fixed', width: '100vw', height: '100vh', zIndex: 9996 }} />}
+
       <div className="scanline-effect"></div>
       <div className="hacker-noise"></div>
       <div className="crt-overlay"></div>

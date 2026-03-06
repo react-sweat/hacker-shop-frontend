@@ -1,68 +1,205 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import "tailwindcss";
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@theme {
+    --color-hacker-green: #00ff41;
+    --color-hacker-glow: #008f11;
+    --color-hacker-bg: #0d0208;
+    --color-hacker-terminal: #003b00;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+    --animate-scanline: scanline 10s linear infinite;
+    --animate-glitch: glitch 2s infinite;
+    --animate-flicker: flicker 0.1s infinite;
+    --animate-loading: loading 2s infinite;
+
+    @keyframes scanline {
+        0% {
+            bottom: 100%;
+        }
+
+        100% {
+            bottom: -100px;
+        }
+    }
+
+    @keyframes glitch {
+        0% {
+            transform: translate(0);
+        }
+
+        20% {
+            transform: translate(-2px, 2px);
+        }
+
+        40% {
+            transform: translate(-2px, -2px);
+        }
+
+        60% {
+            transform: translate(2px, 2px);
+        }
+
+        80% {
+            transform: translate(2px, -2px);
+        }
+
+        100% {
+            transform: translate(0);
+        }
+    }
+
+    @keyframes flicker {
+        0% {
+            opacity: 0.97;
+        }
+
+        5% {
+            opacity: 0.95;
+        }
+
+        10% {
+            opacity: 0.9;
+        }
+
+        15% {
+            opacity: 0.95;
+        }
+
+        20% {
+            opacity: 0.98;
+        }
+
+        25% {
+            opacity: 0.95;
+        }
+
+        30% {
+            opacity: 0.9;
+        }
+
+        35% {
+            opacity: 0.95;
+        }
+
+        40% {
+            opacity: 0.98;
+        }
+
+        45% {
+            opacity: 0.95;
+        }
+
+        50% {
+            opacity: 0.9;
+        }
+
+        55% {
+            opacity: 0.95;
+        }
+
+        60% {
+            opacity: 0.98;
+        }
+
+        65% {
+            opacity: 0.95;
+        }
+
+        70% {
+            opacity: 0.9;
+        }
+
+        75% {
+            opacity: 0.95;
+        }
+
+        80% {
+            opacity: 0.98;
+        }
+
+        85% {
+            opacity: 0.95;
+        }
+
+        90% {
+            opacity: 0.9;
+        }
+
+        95% {
+            opacity: 0.95;
+        }
+
+        100% {
+            opacity: 0.98;
+        }
+    }
+
+    @keyframes loading {
+        0% {
+            width: 0%;
+        }
+
+        50% {
+            width: 100%;
+        }
+
+        100% {
+            width: 0%;
+        }
+    }
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+@layer base {
+    :root {
+        background-color: var(--color-hacker-bg);
+        color: var(--color-hacker-green);
+        font-family: var(--font-mono);
+    }
+
+    body {
+        @apply m-0 overflow-x-hidden;
+    }
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
+@layer utilities {
+    .glow-text {
+        text-shadow: 0 0 5px var(--color-hacker-green), 0 0 10px var(--color-hacker-green);
+    }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+    .hacker-border {
+        @apply border border-hacker-green shadow-[0_0_5px_var(--color-hacker-glow)];
+    }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+    .crt-overlay {
+        @apply fixed inset-0 z-[9997] pointer-events-none;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+            linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+        background-size: 100% 2px, 3px 100%;
+    }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+    .scanline-effect {
+        @apply fixed left-0 right-0 h-[100px] z-[9999] opacity-10 pointer-events-none animate-scanline;
+        background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(0, 255, 65, 0.1) 50%, rgba(0, 0, 0, 0) 100%);
+    }
+
+    .hacker-noise {
+        @apply fixed inset-0 z-[9998] opacity-[0.05] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')];
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        @apply w-2;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+        @apply bg-hacker-bg;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        @apply bg-hacker-terminal border border-hacker-green;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        @apply bg-hacker-green;
+    }
 }

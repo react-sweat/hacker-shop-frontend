@@ -21,6 +21,18 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
 
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
+
+  const [paymentData, setPaymentData] = useState({
+    account: '',
+    holder: '',
+    key: '',
+    expiry: ''
+  })
+
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -49,6 +61,70 @@ function App() {
 
   const removeItem = (id: CartItem['id']) => {
     setCart((prev) => prev.filter((item) => item.id !== id))
+  }
+
+  const formatCardNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+    const trimmed = digits.substring(0, 16)
+    const blocks = trimmed.match(/.{1,4}/g) || []
+    return blocks.join(' ')
+  }
+
+  const formatExpiry = (value: string) => {
+    const digits = value.replace(/\D/g, '')
+
+    if (digits.length === 1 && parseInt(digits) > 1) {
+      return `0${digits}/`
+    }
+
+    if (digits.length >= 2) {
+      let month = parseInt(digits.substring(0, 2))
+      if (month > 12) month = 12
+      if (month === 0) month = 1
+      const monthStr = month.toString().padStart(2, '0')
+
+      if (digits.length > 2) {
+        return `${monthStr}/${digits.substring(2, 4)}`
+      }
+      return `${monthStr}/`
+    }
+
+    return digits
+  }
+
+  const handlePayment = (e: React.FormEvent) => {
+    e.preventDefault()
+    setValidationError(null)
+
+    const expiryParts = paymentData.expiry.split('/')
+    if (expiryParts.length === 2) {
+      const year = parseInt(expiryParts[1])
+      if (isNaN(year) || year < 26) {
+        setValidationError('INVALID_EXPIRY_YEAR: MINIMUM_REQUIRED_26')
+        return
+      }
+    } else {
+      setValidationError('INVALID_EXPIRY_FORMAT')
+      return
+    }
+
+    if (paymentData.account.replace(/\s/g, '').length < 16) {
+      setValidationError('INVALID_ACCOUNT_ID: INCOMPLETE_SEQUENCE')
+      return
+    }
+
+    setIsProcessingPayment(true)
+    setTimeout(() => {
+      setIsProcessingPayment(false)
+      setPaymentSuccess(true)
+      setTimeout(() => {
+        setCart([])
+        setPaymentSuccess(false)
+        setIsPaymentModalOpen(false)
+        setIsCartOpen(false)
+        setPaymentData({ account: '', holder: '', key: '', expiry: '' })
+      }, 2000)
+    }, 3000)
   }
 
   useEffect(() => {
@@ -131,7 +207,7 @@ function App() {
                 )}
                 <div className="mt-auto flex justify-between items-center">
                   <span className="text-2xl font-bold text-white shadow-[0_0_10px_rgba(255,255,255,0.5)] glow-text">
-                    ${product.price.toFixed(2)}
+                    {product.price.toFixed(2)} zł
                   </span>
                   <button
                     className="border border-hacker-green px-4 py-1 text-sm text-hacker-green uppercase tracking-wider transition-all hover:bg-hacker-green hover:text-hacker-bg hover:shadow-[0_0_15px_var(--color-hacker-green)]"
@@ -168,7 +244,7 @@ function App() {
               <div key={item.id} className="border-b border-hacker-terminal/50 py-4 flex justify-between items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-bold truncate">{item.name}</p>
-                  <p className="text-xs opacity-60">${item.price.toFixed(2)}</p>
+                  <p className="text-xs opacity-60">{item.price.toFixed(2)} zł</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center border border-hacker-green">
@@ -191,21 +267,134 @@ function App() {
         <div className="mt-auto border-t border-hacker-terminal pt-6 flex flex-col gap-6">
           <div className="flex justify-between items-center">
             <span className="opacity-70 text-sm">TOTAL_RESOURCES:</span>
-            <span className="text-2xl font-bold glow-text">${cartTotal.toFixed(2)}</span>
+            <span className="text-2xl font-bold glow-text">{cartTotal.toFixed(2)} zł</span>
           </div>
           <button
             className="w-full py-4 border border-hacker-green bg-transparent text-hacker-green text-xl font-bold uppercase tracking-[4px] shadow-[0_0_10px_var(--color-hacker-glow)] transition-all hover:bg-hacker-green hover:text-hacker-bg hover:shadow-[0_0_30px_var(--color-hacker-green)] disabled:opacity-30 disabled:pointer-events-none active:scale-[0.98]"
             disabled={cart.length === 0}
-            onClick={() => {
-              alert('TRANSACTION_COMPLETE: Resources assigned to your account.')
-              setCart([])
-              setIsCartOpen(false)
-            }}
+            onClick={() => setIsPaymentModalOpen(true)}
           >
             EXECUTE_TRANSFER
           </button>
         </div>
       </div>
+
+      {isPaymentModalOpen && (
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => !isProcessingPayment && setIsPaymentModalOpen(false)}></div>
+          <div className="relative w-full max-w-lg bg-hacker-bg border-2 border-hacker-green p-8 shadow-[0_0_50px_var(--color-hacker-glow)]">
+            {paymentSuccess ? (
+              <div className="text-center py-12 space-y-4">
+                <div className="text-6xl text-hacker-green animate-bounce">✓</div>
+                <h2 className="text-2xl font-bold glow-text">TRANSFER_AUTHORIZED</h2>
+                <p className="opacity-70 font-mono">RESOURCES_DEPOSITED_TO_REMOTE_NODE</p>
+              </div>
+            ) : isProcessingPayment ? (
+              <div className="text-center py-12 space-y-8">
+                <div className="flex justify-center">
+                  <div className="w-16 h-16 border-4 border-hacker-green border-t-transparent rounded-full animate-spin"></div>
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-xl font-bold glow-text animate-pulse">ENCRYPTING_TRANSACTION_LOAD...</h2>
+                  <p className="text-[10px] font-mono opacity-50">BYPASSING_PAYMENT_GATEWAY_V4.2</p>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handlePayment} className="space-y-6">
+                <div className="flex justify-between items-center border-b border-hacker-green pb-2 mb-4">
+                  <h2 className="text-xl font-bold glow-text uppercase tracking-widest">Payment_Details</h2>
+                  <button type="button" onClick={() => setIsPaymentModalOpen(false)} className="text-red-500 hover:glow-text font-bold">[X]</button>
+                </div>
+
+                <div className="space-y-4">
+                  {validationError && (
+                    <div className="p-2 border border-red-500 bg-red-950/20 text-red-500 text-[10px] font-mono animate-pulse uppercase">
+                      !! {validationError} !!
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase opacity-70">TARGET_ACCOUNT_IBAN</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full bg-hacker-terminal/20 border border-hacker-green/50 p-2 text-hacker-green focus:border-hacker-green focus:outline-none focus:shadow-[0_0_10px_var(--color-hacker-glow)] font-mono text-sm"
+                      placeholder="0000 0000 0000 0000"
+                      value={paymentData.account}
+                      onChange={e => {
+                        setValidationError(null)
+                        setPaymentData({ ...paymentData, account: formatCardNumber(e.target.value) })
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase opacity-70">ACCOUNT_HOLDER_ALIAS</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full bg-hacker-terminal/20 border border-hacker-green/50 p-2 text-hacker-green focus:border-hacker-green focus:outline-none focus:shadow-[0_0_10px_var(--color-hacker-glow)] font-mono text-sm uppercase"
+                      placeholder="ANONYMOUS_ENTITY"
+                      value={paymentData.holder}
+                      onChange={e => {
+                        setValidationError(null)
+                        setPaymentData({ ...paymentData, holder: e.target.value.toUpperCase() })
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase opacity-70">EXPIRATION (MM/YY)</label>
+                      <input
+                        required
+                        type="text"
+                        className="w-full bg-hacker-terminal/20 border border-hacker-green/50 p-2 text-hacker-green focus:border-hacker-green focus:outline-none focus:shadow-[0_0_10px_var(--color-hacker-glow)] font-mono text-sm"
+                        placeholder="MM/YY"
+                        value={paymentData.expiry}
+                        onChange={e => {
+                          setValidationError(null)
+                          setPaymentData({ ...paymentData, expiry: formatExpiry(e.target.value) })
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase opacity-70">SECURITY_TOKEN</label>
+                      <input
+                        required
+                        type="password"
+                        className="w-full bg-hacker-terminal/20 border border-hacker-green/50 p-2 text-hacker-green focus:border-hacker-green focus:outline-none focus:shadow-[0_0_10px_var(--color-hacker-glow)] font-mono text-sm"
+                        placeholder="***"
+                        maxLength={3}
+                        value={paymentData.key}
+                        onChange={e => {
+                          setValidationError(null)
+                          const val = e.target.value.replace(/\D/g, '')
+                          setPaymentData({ ...paymentData, key: val })
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 space-y-2">
+                  <div className="px-2 py-1 bg-hacker-terminal/10 border border-hacker-green/20 text-[9px] font-mono opacity-60 flex justify-between uppercase">
+                    <span>TRANSFER_AMOUNT: {cartTotal.toFixed(2)} PLN</span>
+                    <span>VERIFICATION_REQUIRED</span>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-3 border-2 border-hacker-green text-hacker-green font-bold uppercase tracking-[4px] hover:bg-hacker-green hover:text-hacker-bg hover:shadow-[0_0_30px_var(--color-hacker-green)] transition-all active:scale-[0.98]"
+                  >
+                    CONFIRM_UPLOAD
+                  </button>
+                </div>
+                <p className="text-[9px] text-center opacity-30 font-mono italic uppercase">
+                  End-to-end encryption active // Remote node connection established
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
 
       <footer className="mt-8 text-[10px] opacity-40 flex justify-between font-mono">
         <p>© 202X ANONYMOUS_HACKER_CORP // ALL_RIGHTS_RESERVED</p>

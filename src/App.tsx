@@ -26,6 +26,10 @@ function App() {
   const [paymentSuccess, setPaymentSuccess] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('hacker-theme') as 'dark' | 'light') || 'dark'
+  })
+
   const [paymentData, setPaymentData] = useState({
     account: '',
     holder: '',
@@ -35,6 +39,13 @@ function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(newTheme)
+    localStorage.setItem('hacker-theme', newTheme)
+    document.documentElement.setAttribute('data-theme', newTheme)
+  }
 
   const addToCart = (product: Product) => {
     setCart((prev) => {
@@ -72,30 +83,25 @@ function App() {
 
   const formatExpiry = (value: string) => {
     const digits = value.replace(/\D/g, '')
-
     if (digits.length === 1 && parseInt(digits) > 1) {
       return `0${digits}/`
     }
-
     if (digits.length >= 2) {
       let month = parseInt(digits.substring(0, 2))
       if (month > 12) month = 12
       if (month === 0) month = 1
       const monthStr = month.toString().padStart(2, '0')
-
       if (digits.length > 2) {
         return `${monthStr}/${digits.substring(2, 4)}`
       }
       return `${monthStr}/`
     }
-
     return digits
   }
 
   const handlePayment = (e: React.FormEvent) => {
     e.preventDefault()
     setValidationError(null)
-
     const expiryParts = paymentData.expiry.split('/')
     if (expiryParts.length === 2) {
       const year = parseInt(expiryParts[1])
@@ -107,12 +113,10 @@ function App() {
       setValidationError('INVALID_EXPIRY_FORMAT')
       return
     }
-
     if (paymentData.account.replace(/\s/g, '').length < 16) {
       setValidationError('INVALID_ACCOUNT_ID: INCOMPLETE_SEQUENCE')
       return
     }
-
     setIsProcessingPayment(true)
     setTimeout(() => {
       setIsProcessingPayment(false)
@@ -128,6 +132,7 @@ function App() {
   }
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
     async function loadProducts() {
       try {
         setIsLoading(true)
@@ -146,7 +151,6 @@ function App() {
         setIsLoading(false)
       }
     }
-
     void loadProducts()
   }, [])
 
@@ -161,8 +165,16 @@ function App() {
           <h1 className="text-4xl font-bold tracking-tighter glow-text animate-glitch uppercase">{`{ HACKER_SHOP }`}</h1>
           <p className="text-xs opacity-80 mt-1">SECURE_INVENTORY_SYSTEM // v0.4.2</p>
         </div>
-        <div className="flex flex-col items-end">
-          <p className="text-[10px] opacity-70 mb-1 font-mono">USER@LOCAL_CLIENT:~$</p>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              className="border border-hacker-green px-3 py-1 text-[10px] uppercase tracking-wider hover:bg-hacker-green hover:text-hacker-bg transition-all font-mono"
+            >
+              MODE: {theme.toUpperCase()}
+            </button>
+            <p className="text-[10px] opacity-70 font-mono">USER@LOCAL_CLIENT:~$</p>
+          </div>
           <button
             className="border border-hacker-green px-6 py-2 text-hacker-green uppercase tracking-[2px] transition-all hover:bg-hacker-green hover:text-hacker-bg hover:shadow-[0_0_20px_var(--color-hacker-green)] active:scale-95 flex items-center gap-2"
             onClick={() => setIsCartOpen(true)}
@@ -194,7 +206,7 @@ function App() {
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8">
             {products.map((product) => (
-              <article key={product.id} className="hacker-border bg-[rgba(0,20,0,0.4)] p-6 flex flex-col gap-4 relative transition-transform hover:-translate-y-1 hover:bg-[rgba(0,40,0,0.6)] group">
+              <article key={product.id} className="hacker-border bg-[rgba(var(--color-hacker-bg-rgb),0.4)] p-6 flex flex-col gap-4 relative transition-transform hover:-translate-y-1 hover:bg-[rgba(var(--color-hacker-bg-rgb),0.6)] group">
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-hacker-green scale-x-0 transition-transform group-hover:scale-x-100"></div>
                 <div className="flex justify-between items-start">
                   <h2 className="text-lg font-bold glow-text leading-tight">{product.name}</h2>
@@ -206,7 +218,7 @@ function App() {
                   </p>
                 )}
                 <div className="mt-auto flex justify-between items-center">
-                  <span className="text-2xl font-bold text-white shadow-[0_0_10px_rgba(255,255,255,0.5)] glow-text">
+                  <span className="text-2xl font-bold text-hacker-green shadow-[0_0_10px_rgba(var(--color-hacker-green-rgb),0.5)] glow-text">
                     {product.price.toFixed(2)} zł
                   </span>
                   <button

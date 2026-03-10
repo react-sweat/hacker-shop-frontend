@@ -157,15 +157,17 @@
     --hacker-terminal: #003b00;
     --hacker-scanline-opacity: 0.1;
     --hacker-noise-opacity: 0.05;
+    --hacker-text-glow: 0 0 5px var(--color-hacker-green), 0 0 10px var(--color-hacker-green);
 }
 
 [data-theme='light'] {
-    --hacker-green: #166534;
-    --hacker-glow: #22c55e;
-    --hacker-bg: #f0fdf4;
-    --hacker-terminal: #dcfce7;
-    --hacker-scanline-opacity: 0.05;
+    --hacker-green: #000000;
+    --hacker-glow: #10b981;
+    --hacker-bg: #ffffff;
+    --hacker-terminal: #f4f4f5;
+    --hacker-scanline-opacity: 0.03;
     --hacker-noise-opacity: 0.02;
+    --hacker-text-glow: none;
 }
 
 [data-theme='winter'] {
@@ -175,6 +177,7 @@
     --hacker-terminal: #001a2c;
     --hacker-scanline-opacity: 0.15;
     --hacker-noise-opacity: 0.08;
+    --hacker-text-glow: 0 0 5px var(--color-hacker-green), 0 0 10px var(--color-hacker-green);
 }
 
 @layer base {
@@ -192,11 +195,16 @@
 
 @layer utilities {
     .glow-text {
-        text-shadow: 0 0 5px var(--color-hacker-green), 0 0 10px var(--color-hacker-green);
+        text-shadow: var(--hacker-text-glow);
     }
 
     .hacker-border {
-        @apply border border-hacker-green shadow-[0_0_5px_var(--color-hacker-glow)];
+        @apply border border-hacker-glow shadow-[0_0_5px_var(--color-hacker-glow)];
+    }
+
+    /* Specific border override for light mode to use green accents instead of black */
+    [data-theme='light'] .hacker-border {
+        @apply border-hacker-glow;
     }
 
     .crt-overlay {
@@ -227,10 +235,10 @@
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-hacker-terminal border border-hacker-green;
+        @apply bg-hacker-terminal border border-hacker-glow;
     }
 
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-hacker-green;
+        @apply bg-hacker-glow;
     }
 }

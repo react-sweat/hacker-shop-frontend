@@ -202,7 +202,6 @@
         @apply border border-hacker-glow shadow-[0_0_5px_var(--color-hacker-glow)];
     }
 
-    /* Specific border override for light mode to use green accents instead of black */
     [data-theme='light'] .hacker-border {
         @apply border-hacker-glow;
     }

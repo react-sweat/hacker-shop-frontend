@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import Snowfall from 'react-snowfall'
+import { RegistrationModal } from './components/RegistrationModal'
+import { LoginModal } from './components/LoginModal'
+import { PurchaseHistoryModal } from './components/PurchaseHistoryModal'
 
 type Product = {
   id: string | number
@@ -21,6 +24,12 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false)
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
+
+  const [user, setUser] = useState<{ username: string } | null>(null)
+  const [token, setToken] = useState<string | null>(null)
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
@@ -123,7 +132,29 @@ function App() {
       return
     }
     setIsProcessingPayment(true)
-    setTimeout(() => {
+    setTimeout(async () => {
+      if (token) {
+        try {
+          await fetch(`${API_BASE_URL}/orders`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              items: cart.map(item => ({
+                productId: item.id,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price
+              })),
+              total: cartTotal
+            })
+          })
+        } catch {
+        }
+      }
+
       setIsProcessingPayment(false)
       setPaymentSuccess(true)
       setTimeout(() => {
@@ -134,6 +165,12 @@ function App() {
         setPaymentData({ account: '', holder: '', key: '', expiry: '' })
       }, 2000)
     }, 3000)
+  }
+
+  const handleLogout = () => {
+    setUser(null)
+    setToken(null)
+    setIsHistoryModalOpen(false)
   }
 
   useEffect(() => {
@@ -174,6 +211,38 @@ function App() {
         </div>
         <div className="flex flex-col items-end gap-3">
           <div className="flex items-center gap-4">
+            {user ? (
+              <>
+                <span className="text-xs font-bold glow-text">ENTITY: {user.username.toUpperCase()}</span>
+                <button
+                  onClick={() => setIsHistoryModalOpen(true)}
+                  className="border border-hacker-glow px-3 py-1 text-[10px] uppercase tracking-wider text-hacker-glow hover:bg-hacker-glow hover:text-hacker-bg transition-all font-bold"
+                >
+                  [ HISTORY ]
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="border border-red-600 px-3 py-1 text-[10px] uppercase tracking-wider text-red-600 hover:bg-red-600 hover:text-white transition-all font-bold shadow-[0_0_5px_rgba(220,38,38,0.5)]"
+                >
+                  [ LOGOUT ]
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="border border-hacker-glow px-4 py-1 text-[12px] uppercase tracking-wider text-hacker-glow hover:bg-hacker-glow hover:text-hacker-bg transition-all font-bold shadow-[0_0_5px_var(--color-hacker-glow)]"
+                >
+                  [ LOGIN ]
+                </button>
+                <button
+                  onClick={() => setIsRegistrationModalOpen(true)}
+                  className="border border-hacker-glow px-4 py-1 text-[12px] uppercase tracking-wider text-hacker-glow hover:bg-hacker-glow hover:text-hacker-bg transition-all font-bold shadow-[0_0_5px_var(--color-hacker-glow)]"
+                >
+                  [ REGISTER ]
+                </button>
+              </>
+            )}
             <button
               onClick={toggleTheme}
               className="border border-hacker-glow px-3 py-1 text-[10px] uppercase tracking-wider hover:bg-hacker-glow hover:text-hacker-bg transition-all font-mono"
@@ -414,6 +483,29 @@ function App() {
           </div>
         </div>
       )}
+
+      <RegistrationModal 
+        isOpen={isRegistrationModalOpen} 
+        onClose={() => setIsRegistrationModalOpen(false)} 
+        apiBaseUrl={API_BASE_URL}
+      />
+
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+        apiBaseUrl={API_BASE_URL}
+        onLoginSuccess={(loggedInUser, authToken) => {
+          setUser(loggedInUser)
+          setToken(authToken)
+        }}
+      />
+
+      <PurchaseHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+        apiBaseUrl={API_BASE_URL}
+        token={token}
+      />
 
       <footer className="mt-8 text-[10px] opacity-40 flex justify-between font-mono bg-hacker-bg px-2 py-1 transition-colors duration-300">
         <p>© 202X ANONYMOUS_HACKER_CORP // ALL_RIGHTS_RESERVED</p>

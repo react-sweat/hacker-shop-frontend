@@ -1,24 +1,30 @@
 import { useEffect, useState } from 'react'
 import Snowfall from 'react-snowfall'
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { RegistrationModal } from './components/RegistrationModal'
 import { LoginModal } from './components/LoginModal'
 import { PurchaseHistoryModal } from './components/PurchaseHistoryModal'
+import { AdminPanel } from './components/AdminPanel'
+import { AdminLoginPage } from './pages/AdminLoginPage'
 
 type Product = {
   id: string | number
   name: string
   description?: string
   price: number
-  imageUrl?: string
+  category?: { name: string }
+  stock?: number
 }
+
 
 type CartItem = Product & {
   quantity: number
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
-
 function App() {
+  const navigate = useNavigate()
+
+
   const [products, setProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +34,7 @@ function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-  const [user, setUser] = useState<{ username: string } | null>(null)
+  const [user, setUser] = useState<{ username: string; role?: string } | null>(null)
   const [token, setToken] = useState<string | null>(null)
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
@@ -40,6 +46,7 @@ function App() {
     return (localStorage.getItem('hacker-theme') as 'dark' | 'light' | 'winter') || 'dark'
   })
 
+
   const [paymentData, setPaymentData] = useState({
     account: '',
     holder: '',
@@ -49,6 +56,16 @@ function App() {
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  const API_BASE_URL =
+    (import.meta as any).env?.VITE_API_BASE_URL?.toString?.() ||
+    (import.meta as any).env?.VITE_API_URL?.toString?.() ||
+    'http://localhost:3000'
+
+  const getStockFor = (productId: Product['id']) => {
+    const p = products.find((x) => x.id === productId)
+    return typeof p?.stock === 'number' ? p.stock : Infinity
+  }
 
   const toggleTheme = () => {
     let newTheme: 'dark' | 'light' | 'winter'
@@ -64,6 +81,10 @@ function App() {
   const addToCart = (product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id)
+      const maxStock = getStockFor(product.id)
+      const existingQty = existing?.quantity ?? 0
+      if (existingQty >= maxStock) return prev
+
       if (existing) {
         return prev.map((item) =>
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item,
@@ -135,7 +156,7 @@ function App() {
     setTimeout(async () => {
       if (token) {
         try {
-          await fetch(`${API_BASE_URL}/orders`, {
+          const res = await fetch(`${API_BASE_URL}/orders`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -144,14 +165,22 @@ function App() {
             body: JSON.stringify({
               items: cart.map(item => ({
                 productId: item.id,
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price
+                quantity: item.quantity
               })),
               total: cartTotal
             })
           })
+          if (!res.ok) {
+            const body = await res.json().catch(() => null)
+            const msg = body?.message || `ORDER_FAILED_STATUS_${res.status}`
+            setValidationError(msg)
+            setIsProcessingPayment(false)
+            return
+          }
         } catch {
+          setValidationError('NETWORK_ERROR_DURING_ORDER')
+          setIsProcessingPayment(false)
+          return
         }
       }
 
@@ -170,11 +199,24 @@ function App() {
   const handleLogout = () => {
     setUser(null)
     setToken(null)
+    localStorage.removeItem('hacker-token')
+    localStorage.removeItem('hacker-user')
     setIsHistoryModalOpen(false)
+    navigate('/')
   }
 
   useEffect(() => {
+    const savedToken = localStorage.getItem('hacker-token')
+    const savedUser = localStorage.getItem('hacker-user')
+    if (savedToken && savedUser) {
+      setToken(savedToken)
+      setUser(JSON.parse(savedUser))
+    }
+  }, [])
+
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+
     async function loadProducts() {
       try {
         setIsLoading(true)
@@ -214,12 +256,21 @@ function App() {
             {user ? (
               <>
                 <span className="text-xs font-bold glow-text">ENTITY: {user.username.toUpperCase()}</span>
+                {user.role === 'ADMIN' && (
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="border-2 border-red-500 px-3 py-1 text-[10px] uppercase tracking-wider text-red-500 hover:bg-red-500 hover:text-white transition-all font-bold animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.5)]"
+                  >
+                    [ ADMIN_PANEL ]
+                  </button>
+                )}
                 <button
                   onClick={() => setIsHistoryModalOpen(true)}
                   className="border border-hacker-glow px-3 py-1 text-[10px] uppercase tracking-wider text-hacker-glow hover:bg-hacker-glow hover:text-hacker-bg transition-all font-bold"
                 >
                   [ HISTORY ]
                 </button>
+
                 <button
                   onClick={handleLogout}
                   className="border border-red-600 px-3 py-1 text-[10px] uppercase tracking-wider text-red-600 hover:bg-red-600 hover:text-white transition-all font-bold shadow-[0_0_5px_rgba(220,38,38,0.5)]"
@@ -261,59 +312,102 @@ function App() {
       </header>
 
       <main className="flex-1">
-        {isLoading ? (
-          <div className="h-64 flex flex-col items-center justify-center gap-4">
-            <div className="w-64 h-2 bg-hacker-terminal/30 hacker-border overflow-hidden">
-              <div className="h-full bg-hacker-glow animate-loading"></div>
-            </div>
-            <p className="glow-text animate-pulse">ESTABLISHING_LINK...</p>
-          </div>
-        ) : error ? (
-          <div className="p-8 hacker-border bg-red-950/10 text-red-600">
-            <h2 className="text-xl font-bold mb-2">!! SYSTEM_ERROR !!</h2>
-            <p>{error}</p>
-            <button
-              className="mt-4 border border-red-600 text-red-600 px-4 py-1 hover:bg-red-600 hover:text-white transition-colors uppercase font-bold"
-              onClick={() => window.location.reload()}
-            >
-              REBOOT_SYSTEM
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8">
-            {products.map((product) => (
-              <article key={product.id} className="hacker-border bg-hacker-bg/40 p-6 flex flex-col gap-4 relative transition-transform hover:-translate-y-1 hover:bg-hacker-bg/60 group">
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-hacker-glow scale-x-0 transition-transform group-hover:scale-x-100"></div>
-                <div className="flex justify-between items-start">
-                  <h2 className="text-lg font-bold glow-text leading-tight">{product.name}</h2>
-                  <span className="text-[10px] opacity-50 font-mono">ID: {product.id}</span>
+        <Routes>
+          <Route path="/" element={
+            isLoading ? (
+              <div className="h-64 flex flex-col items-center justify-center gap-4">
+                <div className="w-64 h-2 bg-hacker-terminal/30 hacker-border overflow-hidden">
+                  <div className="h-full bg-hacker-glow animate-loading"></div>
                 </div>
-                {product.description && (
-                  <p className="text-sm opacity-80 leading-relaxed h-12 overflow-hidden italic">
-                    {`> ${product.description}`}
-                  </p>
-                )}
-                <div className="mt-auto flex justify-between items-center">
-                  <span className="text-2xl font-bold text-hacker-green glow-text">
-                    {product.price.toFixed(2)} zł
-                  </span>
-                  <button
-                    className="border border-hacker-glow px-4 py-1 text-sm text-hacker-green uppercase tracking-wider transition-all hover:bg-hacker-glow hover:text-hacker-bg hover:shadow-[0_0_15px_var(--color-hacker-glow)]"
-                    onClick={() => addToCart(product)}
-                  >
-                    TRANSFER
-                  </button>
-                </div>
-                <div className="absolute top-0 right-0 p-1 opacity-20">
-                  <div className="w-1 h-1 bg-hacker-glow rounded-full animate-ping"></div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+                <p className="glow-text animate-pulse">ESTABLISHING_LINK...</p>
+              </div>
+            ) : error ? (
+              <div className="p-8 hacker-border bg-red-950/10 text-red-600">
+                <h2 className="text-xl font-bold mb-2">!! SYSTEM_ERROR !!</h2>
+                <p>{error}</p>
+                <button
+                  className="mt-4 border border-red-600 text-red-600 px-4 py-1 hover:bg-red-600 hover:text-white transition-colors uppercase font-bold"
+                  onClick={() => window.location.reload()}
+                >
+                  REBOOT_SYSTEM
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-8">
+                {products.map((product) => (
+                  <article key={product.id} className="hacker-border bg-hacker-bg/40 flex flex-col gap-4 relative transition-transform hover:-translate-y-1 hover:bg-hacker-bg/60 group overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-[2px] bg-hacker-glow scale-x-0 transition-transform group-hover:scale-x-100"></div>
+                    
+                    <div className="p-6 pt-4 flex flex-col gap-4 flex-1">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h2 className="text-lg font-bold glow-text leading-tight">{product.name}</h2>
+                          {product.category && (
+                            <span className="text-[9px] text-hacker-glow border border-hacker-glow/30 px-1 rounded uppercase tracking-tighter">
+                              {product.category.name}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] opacity-30 font-mono">ID: {product.id}</span>
+                      </div>
+                      
+                      {product.description && (
+                        <p className="text-sm opacity-80 leading-relaxed h-12 overflow-hidden italic">
+                          {`> ${product.description}`}
+                        </p>
+                      )}
+                      
+                      <div className="mt-auto flex justify-between items-center">
+                        <span className="text-2xl font-bold text-hacker-green glow-text">
+                          {product.price.toFixed(2)} zł
+                        </span>
+                        <button
+                          className="border border-hacker-glow px-4 py-1 text-sm text-hacker-green uppercase tracking-wider transition-all hover:bg-hacker-glow hover:text-hacker-bg hover:shadow-[0_0_15px_var(--color-hacker-glow)] disabled:opacity-40 disabled:pointer-events-none"
+                          disabled={typeof product.stock === 'number' ? product.stock <= 0 : false}
+                          onClick={() => addToCart(product)}
+                        >
+                          {typeof product.stock === 'number' && product.stock <= 0 ? 'OUT_OF_STOCK' : 'TRANSFER'}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="absolute top-0 right-0 p-1 opacity-20">
+                      <div className="w-1 h-1 bg-hacker-glow rounded-full animate-ping"></div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )
+          } />
+          <Route
+            path="/admin-login"
+            element={
+              <AdminLoginPage
+                apiBaseUrl={API_BASE_URL}
+                onLoginSuccess={(loggedInUser, authToken) => {
+                  setUser(loggedInUser)
+                  setToken(authToken)
+                  localStorage.setItem('hacker-token', authToken)
+                  localStorage.setItem('hacker-user', JSON.stringify(loggedInUser))
+                }}
+              />
+            }
+          />
+          <Route path="/admin" element={
+            user?.role === 'ADMIN' ? (
+              <AdminPanel 
+                apiBaseUrl={API_BASE_URL}
+                token={token}
+              />
+            ) : (
+              <Navigate to="/admin-login" replace />
+            )
+          } />
+        </Routes>
       </main>
 
-      <div className={`fixed right-0 top-0 bottom-0 w-[400px] max-w-full bg-hacker-bg border-l-2 border-hacker-glow p-8 flex flex-col gap-6 z-[1000] transition-transform duration-400 ease-[cubic-bezier(0.4,0,0.2,1)] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div className={`fixed right-0 top-0 bottom-0 w-[400px]
+ max-w-full bg-hacker-bg border-l-2 border-hacker-glow p-8 flex flex-col gap-6 z-[1000] transition-transform duration-400 ease-[cubic-bezier(0.4,0,0.2,1)] ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex justify-between items-center mb-2">
           <h2 className="text-2xl font-bold glow-text">BUFFER_CONTENTS</h2>
           <button
@@ -338,7 +432,13 @@ function App() {
                   <div className="flex items-center border border-hacker-glow">
                     <button className="w-6 h-6 flex items-center justify-center hover:bg-hacker-glow hover:text-hacker-bg border-r border-hacker-glow" onClick={() => decrementItem(item.id)}>-</button>
                     <span className="px-2 text-xs font-mono">{item.quantity}</span>
-                    <button className="w-6 h-6 flex items-center justify-center hover:bg-hacker-glow hover:text-hacker-bg border-l border-hacker-glow" onClick={() => addToCart(item)}>+</button>
+                    <button
+                      className="w-6 h-6 flex items-center justify-center hover:bg-hacker-glow hover:text-hacker-bg border-l border-hacker-glow disabled:opacity-40 disabled:pointer-events-none"
+                      disabled={item.quantity >= getStockFor(item.id)}
+                      onClick={() => addToCart(item)}
+                    >
+                      +
+                    </button>
                   </div>
                   <button
                     className="text-red-600 text-[10px] hover:glow-text ml-2 uppercase font-bold"
@@ -497,8 +597,11 @@ function App() {
         onLoginSuccess={(loggedInUser, authToken) => {
           setUser(loggedInUser)
           setToken(authToken)
+          localStorage.setItem('hacker-token', authToken)
+          localStorage.setItem('hacker-user', JSON.stringify(loggedInUser))
         }}
       />
+
 
       <PurchaseHistoryModal
         isOpen={isHistoryModalOpen}
@@ -506,6 +609,7 @@ function App() {
         apiBaseUrl={API_BASE_URL}
         token={token}
       />
+
 
       <footer className="mt-8 text-[10px] opacity-40 flex justify-between font-mono bg-hacker-bg px-2 py-1 transition-colors duration-300">
         <p>© 202X ANONYMOUS_HACKER_CORP // ALL_RIGHTS_RESERVED</p>

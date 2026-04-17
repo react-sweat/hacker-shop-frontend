@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 type Category = {
-  id: number
+  id: string
   name: string
 }
 
 type Product = {
-  id: number
+  id: string
   name: string
   price: number
   description: string | null
   stock: number
-  categoryId: number | null
+  categoryId: string | null
+  category?: { name: string }
 }
 
 
@@ -63,14 +64,21 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
         'Content-Type': 'application/json'
       }
 
-      if (activeTab === 'categories' || activeTab === 'products' || activeTab === 'warehouse') {
+      if (activeTab === 'categories') {
         const catRes = await fetch(`${apiBaseUrl}/admin/categories`, { headers })
         setCategories(await catRes.json())
       }
 
-      if (activeTab === 'products' || activeTab === 'warehouse') {
+      if (activeTab === 'products') {
+        const catRes = await fetch(`${apiBaseUrl}/admin/categories`, { headers })
         const prodRes = await fetch(`${apiBaseUrl}/admin/products`, { headers })
+        setCategories(await catRes.json())
         setProducts(await prodRes.json())
+      }
+
+      if (activeTab === 'warehouse') {
+        const invRes = await fetch(`${apiBaseUrl}/admin/inventory`, { headers })
+        setProducts(await invRes.json())
       }
 
       if (activeTab === 'reports') {
@@ -97,7 +105,7 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
     } catch (err) {}
   }
 
-  const handleDeleteCategory = async (id: number) => {
+  const handleDeleteCategory = async (id: string) => {
     if (!confirm('CONFIRM_DELETION?')) return
     try {
       await fetch(`${apiBaseUrl}/admin/categories/${id}`, {
@@ -108,7 +116,7 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
     } catch (err) {}
   }
 
-  const handleRenameCategory = async (id: number, currentName: string) => {
+  const handleRenameCategory = async (id: string, currentName: string) => {
     const name = prompt('ENTER_NEW_CATEGORY_NAME:', currentName)
     if (!name) return
     try {
@@ -131,7 +139,7 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
           ...newProduct,
           price: Number(newProduct.price),
           stock: Number(newProduct.stock),
-          categoryId: newProduct.categoryId ? Number(newProduct.categoryId) : null
+          categoryId: newProduct.categoryId || null
         })
       })
       setNewProduct({ name: '', price: 0, description: '', stock: 0, categoryId: '' })
@@ -140,7 +148,7 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
   }
 
 
-  const handleDeleteProduct = async (id: number) => {
+  const handleDeleteProduct = async (id: string) => {
     if (!confirm('CONFIRM_DELETION?')) return
     try {
       await fetch(`${apiBaseUrl}/admin/products/${id}`, {
@@ -151,9 +159,9 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
     } catch (err) {}
   }
 
-  const handleUpdateStock = async (id: number, newStock: number) => {
+  const handleUpdateStock = async (id: string, newStock: number) => {
     try {
-      await fetch(`${apiBaseUrl}/admin/products/${id}`, {
+      await fetch(`${apiBaseUrl}/admin/inventory/${id}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ stock: newStock })
@@ -166,7 +174,6 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
     <div className="flex flex-col h-full bg-hacker-bg border-4 border-hacker-glow shadow-[0_0_100px_var(--color-hacker-glow)] overflow-hidden">
 
         
-        {/* HEADER */}
         <div className="p-6 border-b-2 border-hacker-glow flex justify-between items-center bg-hacker-bg/50">
           <div>
             <h2 className="text-3xl font-bold glow-text animate-glitch uppercase tracking-widest">{`[ ADMIN_TERMINAL_v1.0 ]`}</h2>
@@ -175,7 +182,6 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
           <button onClick={onClose} className="text-red-600 hover:glow-text text-2xl font-bold transition-all hover:scale-110">[X]</button>
         </div>
 
-        {/* TABS */}
         <div className="flex bg-hacker-glow/5 border-b border-hacker-glow">
           {(['products', 'categories', 'warehouse', 'reports'] as const).map(tab => (
             <button
@@ -192,7 +198,6 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
           ))}
         </div>
 
-        {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           {loading && (
             <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -318,7 +323,7 @@ export function AdminPanel({ apiBaseUrl, token }: AdminPanelProps) {
                         <td className="py-3 px-4 opacity-50">{p.id}</td>
                         <td className="py-3 px-4 font-bold">{p.name}</td>
                         <td className="py-3 px-4 text-hacker-green">{p.price.toFixed(2)} zł</td>
-                        <td className="py-3 px-4 uppercase text-xs">{(p as any).category?.name || '---'}</td>
+                        <td className="py-3 px-4 uppercase text-xs">{p.category?.name || '---'}</td>
                         <td className="py-3 px-4">{p.stock}</td>
                         <td className="py-3 px-4">
                           <button onClick={() => handleDeleteProduct(p.id)} className="text-red-600 hover:glow-text uppercase font-bold text-xs">[ DEL ]</button>

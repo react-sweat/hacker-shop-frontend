@@ -6,6 +6,7 @@ import { LoginModal } from './components/LoginModal'
 import { PurchaseHistoryModal } from './components/PurchaseHistoryModal'
 import { AdminPanel } from './components/AdminPanel'
 import { AdminLoginPage } from './pages/AdminLoginPage'
+import { ChatAssistant } from './components/ChatAssistant'
 
 type Product = {
   id: string | number
@@ -615,6 +616,8 @@ function App() {
         <p>© 202X ANONYMOUS_HACKER_CORP // ALL_RIGHTS_RESERVED</p>
         <p>TERMINAL_CONNECTION: ENCRYPTED_AES256</p>
       </footer>
+      
+      <ChatAssistant />
     </div>
   )
 }
